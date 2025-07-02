@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buscador de Versículos Bíblicos - Neón</title>
+    <style>
+        /* Estilos personalizados para el efecto neón y fondo oscuro */
+        body { 
+            background-color: #1a1a1a; /* Fondo muy oscuro */
+            font-family: 'Inter', sans-serif; /* Asegúrate de tener esta fuente o una similar */
+            color: #f0f0f0; /* Texto blanco brillante por defecto */
+            margin: 0; /* Eliminar margen predeterminado del body */
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px; /* Un poco más de ancho para el contenedor principal */
+            margin: auto;
+            padding: 20px 30px;
+            background-color: #2a2a2a; /* Fondo del contenedor más claro que el body */
+            border-radius: 15px; /* Bordes más redondeados */
+            box-shadow: 0 0 25px rgba(0, 255, 204, 0.2); /* Sombra neón sutil */
+            border: 1px solid #3c3c3c;
+        }
+
+        h1, h2 {
+            color: #00FFCC; /* Verde/Cian brillante para los títulos */
+            text-align: center;
+            text-shadow: 0 0 8px rgba(0, 255, 204, 0.7); /* Efecto de brillo neón */
+            margin-bottom: 30px;
+        }
+        
+        div { 
+            margin-bottom: 20px; 
+        }
+
+        label { 
+            display: block; 
+            margin-bottom: 8px; 
+            font-weight: bold; 
+            color: #00FFCC; /* Verde/Cian brillante para las etiquetas */
+            font-size: 1.1em;
+        }
+
+        /* Clases para inputs y selects */
+        .neon-input, 
+        .neon-select {
+            background-color: #3a3a3a; /* Fondo más oscuro para inputs */
+            color: #FF33FF; /* Magenta brillante para el texto de entrada */
+            border-radius: 8px;
+            padding: 10px 15px; /* Más padding para mejor apariencia */
+            border: 1px solid #555;
+            transition: border-color 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+            width: calc(100% - 30px); /* Ajuste para el padding */
+            box-sizing: border-box; /* Incluir padding y borde en el ancho */
+            font-size: 1em;
+        }
+        .neon-input:focus, 
+        .neon-select:focus {
+            border-color: #00FFFF; /* Cian brillante al enfocar */
+            outline: none;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.6); /* Sombra de enfoque neón */
+        }
+
+        /* Clase para el botón */
+        .neon-button {
+            background-color: #00CCFF; /* Azul brillante */
+            color: black; /* Texto negro para contraste */
+            font-weight: bold;
+            padding: 12px 25px; /* Más padding para el botón */
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+            box-shadow: 0 0 10px rgba(0, 204, 255, 0.5); /* Sombra neón */
+            font-size: 1.1em;
+            display: block; /* Ocupa todo el ancho */
+            width: 100%;
+            margin-top: 15px; /* Espacio superior para el botón principal */
+        }
+        .neon-button:hover {
+            background-color: #0099FF; /* Azul un poco más oscuro al pasar el ratón */
+            box-shadow: 0 0 15px rgba(0, 204, 255, 0.8); /* Brillo más intenso */
+        }
+
+        /* Estilos específicos para botones de nota/resaltado */
+        .action-button {
+            background: none;
+            border: 1px solid #FF33FF; /* Borde magenta neón */
+            color: #FF33FF;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.85em;
+            margin-left: 10px;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 0 5px rgba(255, 51, 255, 0.3);
+        }
+        .action-button:hover {
+            background-color: #FF33FF;
+            color: black;
+            box-shadow: 0 0 10px rgba(255, 51, 255, 0.6);
+        }
+
+        /* Estilo para grupo de botones */
+        .button-group {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px; /* Espacio entre botones */
+            margin-top: 10px;
+        }
+        .button-group .neon-button {
+            width: 100%; /* Para que cada botón ocupe la mitad del espacio */
+            padding: 10px 15px;
+            font-size: 1em;
+            margin-top: 0;
+        }
+
+
+        hr {
+            border: 0;
+            height: 1px;
+            background: linear-gradient(to right, transparent, #00FFCC, transparent); /* Línea divisoria con degradado neón */
+            margin: 40px 0;
+        }
+
+        /* Clase para el área de resultados */
+        .result-area {
+            background-color: #0d0d0d; /* Fondo muy oscuro, casi negro */
+            color: #f0f0f0;
+            border-radius: 12px;
+            padding: 20px;
+            min-height: 250px; /* Altura mínima aumentada */
+            overflow-y: auto; /* Scroll si el contenido es largo */
+            font-family: 'Consolas', 'Courier New', monospace; /* Fuente más tecnológica */
+            line-height: 1.8; /* Mayor espacio entre líneas para lectura */
+            border: 1px solid #333;
+            box-shadow: inset 0 0 10px rgba(0, 255, 255, 0.1); /* Sombra interna para el área */
+        }
+
+        /* Clases para el texto dentro del área de resultados */
+        .verse-entry {
+            margin-bottom: 25px; /* Espacio entre cada versículo */
+            padding-bottom: 10px;
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.1); /* Separador sutil */
+        }
+        .verse-reference {
+            color: #00FFFF; /* Cian brillante */
+            font-weight: bold;
+            font-size: 1.2em; /* Tamaño de fuente ligeramente mayor */
+            margin-bottom: 12px;
+            display: block;
+            text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
+        }
+        .verse-number {
+            color: #FFFF00; /* Amarillo neón */
+            font-weight: bold;
+            font-size: 1.3em; /* Tamaño de fuente más grande para el número */
+            margin-right: 8px;
+            text-shadow: 0 0 4px rgba(255, 255, 0, 0.6);
+        }
+        .verse-text {
+            color: #00FF99; /* Verde neón */
+            font-size: 1.05em;
+        }
+        .error-text {
+            color: #FF5555; /* Rojo para errores */
+            font-style: italic;
+            font-size: 0.95em;
+            text-shadow: 0 0 3px rgba(255, 85, 85, 0.7);
+        }
+
+        /* Clase para la barra de estado */
+        .status-bar {
+            background-color: #1f1f1f; /* Fondo oscuro para la barra de estado */
+            color: #00FFCC; /* Texto verde/cian brillante */
+            padding: 12px 20px;
+            border-top: 1px solid #444;
+            border-radius: 0 0 15px 15px; /* Bordes inferiores redondeados */
+            text-align: center; /* Centrar el texto */
+            font-size: 0.95em;
+            margin-top: 20px; /* Espacio superior */
+            box-shadow: 0 -2px 10px rgba(0, 255, 204, 0.1); /* Sombra sutil hacia arriba */
+        }
+
+        /* Estilo para la información de capítulos/versículos */
+        .info-text {
+            font-size: 0.85em;
+            color: #88FFFF; /* Azul/Cian claro para la información */
+            margin-top: 5px;
+            margin-left: 2px;
+            display: block; /* Asegurarse de que sea visible */
+        }
+
+        /* Estilos para la sección de información del libro */
+        #info-libro-area {
+            background-color: #1f1f1f;
+            border: 1px solid #444;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+            box-shadow: 0 0 10px rgba(0, 255, 204, 0.15);
+        }
+        #info-libro-area h3 {
+            color: #00FFFF; /* Cian brillante para el título de la información */
+            margin-top: 0;
+            text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
+        }
+        #info-libro-area p {
+            color: #c0c0c0; /* Texto gris claro para el contenido */
+            margin-bottom: 8px;
+        }
+        #info-libro-area strong {
+            color: #FFFF00; /* Amarillo neón para las etiquetas */
+        }
+        .highlight {
+            background-color: rgba(255, 255, 0, 0.3); /* Resaltado amarillo semi-transparente */
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        /* Estilos para Notas y Resaltados */
+        .verse-note {
+            background-color: rgba(100, 100, 255, 0.15); /* Fondo ligeramente azulado para la nota */
+            border-left: 3px solid #66CCFF; /* Borde azul claro */
+            padding: 10px 15px;
+            margin-top: 10px;
+            border-radius: 5px;
+            font-size: 0.9em;
+            color: #DDEEFF; /* Texto claro para la nota */
+            position: relative;
+        }
+        .verse-note-text {
+            white-space: pre-wrap; /* Mantiene los saltos de línea del usuario */
+        }
+        .note-delete-button {
+            position: absolute;
+            top: 5px;
+            right: 10px;
+            background: none;
+            border: none;
+            color: #FF5555; /* Rojo para eliminar */
+            font-size: 1.2em;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .note-delete-button:hover {
+            transform: scale(1.1);
+        }
+
+        .highlighted-verse {
+            background-color: rgba(255, 255, 0, 0.2); /* Fondo de resaltado más sutil */
+            padding: 2px 5px;
+            border-radius: 4px;
+            display: inline-block; /* Para que el resaltado no rompa la línea */
+        }
+
+        /* Estilos para el Modal de Notas */
+        .note-modal-overlay {
+            display: none; /* Oculto por defecto */
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.7); /* Fondo semi-transparente oscuro */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .note-modal-content {
+            background-color: #2a2a2a;
+            margin: auto;
+            padding: 30px;
+            border: 1px solid #00FFCC; /* Borde neón */
+            border-radius: 15px;
+            width: 80%;
+            max-width: 500px;
+            box-shadow: 0 0 20px rgba(0, 255, 204, 0.4);
+            position: relative;
+        }
+        .note-modal-content h3 {
+            color: #00FFFF;
+            text-align: center;
+            margin-top: 0;
+            margin-bottom: 20px;
+            text-shadow: 0 0 8px rgba(0, 255, 255, 0.6);
+        }
+        .note-modal-content textarea {
+            width: 100%;
+            min-height: 150px;
+            background-color: #3a3a3a;
+            color: #FF33FF;
+            border: 1px solid #555;
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 1em;
+            box-sizing: border-box;
+            resize: vertical;
+            margin-bottom: 15px;
+        }
+        .note-modal-content textarea:focus {
+            border-color: #00FFFF;
+            outline: none;
+            box-shadow: 0 0 8px rgba(0, 255, 255, 0.5);
+        }
+        .note-modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        .note-modal-buttons .neon-button {
+            width: auto; /* Ancho automático para botones de modal */
+            padding: 8px 15px;
+            font-size: 0.95em;
+            margin-top: 0;
+        }
+        .close-button {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            color: #00FFCC;
+            font-size: 2em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .close-button:hover {
+            color: #FF5555;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Buscador de Versículos Bíblicos</h1>
+
+        <div>
+            <label for="libro-combo" class="neon-label">Libro:</label>
+            <select id="libro-combo" class="neon-select"></select>
+            <div id="capitulos-info" class="info-text"></div> 
+        </div>
+
+        <div id="info-libro-area" style="display: none;">
+            <h3>Información del Libro: <span id="info-libro-titulo"></span></h3>
+            <p><strong>Autor:</strong> <span id="info-libro-autor"></span></p>
+            <p><strong>Tema Principal:</strong> <span id="info-libro-tema"></span></p>
+            <p><strong>Contexto:</strong> <span id="info-libro-contexto"></span></p>
+        </div>
+
+        <div>
+            <label for="capitulo-entry" class="neon-label">Capítulo:</label>
+            <input type="number" id="capitulo-entry" class="neon-input" placeholder="Ej: 1" min="1">
+            <div id="versiculos-info" class="info-text"></div> 
+        </div>
+
+        <div class="button-group">
+            <button id="prev-capitulo-btn" class="neon-button">Capítulo Anterior</button>
+            <button id="next-capitulo-btn" class="neon-button">Capítulo Siguiente</button>
+        </div>
+
+        <div>
+            <label for="versiculo-entry" class="neon-label">Versículo(s):</label>
+            <input type="text" id="versiculo-entry" class="neon-input" placeholder="Ej: 1 o 1-5">
+        </div>
+
+        <button id="buscar-btn" class="neon-button">Buscar Pasaje</button>
+
+        <hr>
+
+        <div>
+            <label for="search-text-entry" class="neon-label">Buscar texto en versículos:</label>
+            <input type="text" id="search-text-entry" class="neon-input" placeholder="Ej: amor o paz">
+        </div>
+        <button id="search-text-btn" class="neon-button">Buscar Texto</button>
+        
+        <hr>
+
+        <h2>Resultados:</h2>
+        <div id="resultado-area" class="result-area">
+            Cargando datos...
+        </div>
+
+        <button id="share-btn" class="neon-button" style="margin-top: 20px;">Compartir Versículo</button>
+        <button id="my-notes-btn" class="neon-button" style="margin-top: 10px; background-color: #FF6600; box-shadow: 0 0 10px rgba(255, 102, 0, 0.5);">Mis Notas y Resaltados</button>
+
+
+        <div id="status-bar" class="status-bar">
+            
+        </div>
+    </div>
+
+    <div id="note-modal-overlay" class="note-modal-overlay" style="display: none;">
+        <div class="note-modal-content">
+            <span class="close-button">&times;</span>
+            <h3 id="modal-verse-ref">Nota para:</h3>
+            <textarea id="note-text-area" placeholder="Escribe tu nota aquí..."></textarea>
+            <div class="note-modal-buttons">
+                <button id="save-note-btn" class="neon-button">Guardar Nota</button>
+                <button id="delete-note-btn" class="neon-button" style="background-color: #FF5555;">Eliminar Nota</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
