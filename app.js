@@ -677,3 +677,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
+// NUEVO: Event listener para el botón "Mis Notas y Resaltados"
+const myNotesBtn = document.getElementById('my-notes-btn');
+if (myNotesBtn) { // Asegurarse de que el botón exista antes de añadir el listener
+    myNotesBtn.addEventListener('click', () => {
+        window.location.href = 'biblioteca_notas.html'; // Redirige a la nueva página
+    });
+}
