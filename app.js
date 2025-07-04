@@ -720,28 +720,27 @@ function saveNote() {
     const noteText = noteTextArea.value.trim();
     const allData = getAllVerseData();
 
+    // Extraer libro, capítulo y versículo del currentVerseForNote (e.g., "Genesis_1_1")
+    const [book, chapter, verse] = currentVerseForNote.split('_');
+    // Construir la referencia legible
+    const readableReference = `${book} ${chapter}:${verse}`;
+
     if (noteText) {
         allData[currentVerseForNote] = {
             ...allData[currentVerseForNote], // Mantener highlighted si ya existe
             note: noteText,
-            reference: modalVerseRef.textContent.replace('Nota para: ', '') // Guardar la referencia completa
+            reference: readableReference // <--- ASEGURA ESTO
         };
     } else {
-        // Si la nota está vacía, la eliminamos
         if (allData[currentVerseForNote] && allData[currentVerseForNote].highlighted) {
-            // Si solo se elimina la nota pero está resaltado, quitar la nota y mantener el resaltado
             delete allData[currentVerseForNote].note;
         } else {
-            // Si no hay nota y no está resaltado, eliminar completamente la entrada
             delete allData[currentVerseForNote];
         }
     }
     saveAllVerseData(allData);
     closeNoteModal();
-    // Vuelve a cargar el pasaje actual para que la nota se muestre o se oculte
-    buscarVersiculo(); 
-    // O si estás en una búsqueda de texto:
-    // buscarTexto(); // Esto dependerá de la última búsqueda realizada
+    buscarVersiculo();
 }
 
 // Elimina la nota de localStorage
@@ -768,14 +767,13 @@ function deleteNote() {
 function toggleHighlight(book, chapter, verse) {
     const verseId = `${book}_${chapter}_${verse}`;
     const allData = getAllVerseData();
+    const readableReference = `${book} ${chapter}:${verse}`; // <--- Definir aquí
 
     if (allData[verseId] && allData[verseId].highlighted) {
         // Si ya está resaltado, lo desresaltamos
         if (allData[verseId].note) {
-            // Si también tiene nota, solo quitamos el resaltado
             delete allData[verseId].highlighted;
         } else {
-            // Si no tiene nota, eliminamos la entrada completa
             delete allData[verseId];
         }
     } else {
@@ -783,14 +781,12 @@ function toggleHighlight(book, chapter, verse) {
         allData[verseId] = {
             ...allData[verseId],
             highlighted: true,
-            reference: `${book} ${chapter}:${verse}` // Aseguramos que la referencia se guarde
+            reference: readableReference // <--- ASEGURA ESTO
         };
     }
     saveAllVerseData(allData);
-    buscarVersiculo(); // Vuelve a cargar el pasaje
-    // buscarTexto(); // O si estás en una búsqueda de texto
+    buscarVersiculo();
 }
-
 // Añade listeners a los botones de acción (nota y resaltar) después de cada renderizado
 function addActionButtonListeners() {
     document.querySelectorAll('.action-button').forEach(button => {
