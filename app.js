@@ -25,7 +25,7 @@ const infoLibroAutor = document.getElementById('info-libro-autor');
 const infoLibroTema = document.getElementById('info-libro-tema');
 const infoLibroContexto = document.getElementById('info-libro-contexto');
 
-const searchTextEntry = document.getElementById('search-text-entry'); // Corregido: ID en HTML es 'search-text-entry'
+const searchTextEntry = document.getElementById('search-text-entry');
 const searchTextBtn = document.getElementById('search-text-btn');
 
 const shareBtn = document.getElementById('share-btn');
@@ -46,11 +46,12 @@ const verseOfTheDayReference = document.getElementById('verse-of-the-day-referen
 const randomVerseBtn = document.getElementById('random-verse-btn');
 const randomVerseOutputArea = document.getElementById('random-verse-output-area');
 
-// NUEVO: Referencia al botón "Mis Notas y Resaltados"
+// Referencia al botón "Mis Notas y Resaltados"
 const myNotesBtn = document.getElementById('my-notes-btn');
 
 
 let currentVerseForNote = null; // Para saber qué versículo estamos editando/notando
+let currentVerseTextForNote = null; // Para guardar el texto del versículo actual
 
 // --- Funciones de Utilidad ---
 
@@ -103,9 +104,8 @@ async function displayVerseOfTheDay() {
         while (!foundVerse && attempts < maxAttempts) {
             attempts++;
             randomBookName = allBooks[Math.floor(Math.random() * allBooks.length)];
-            const bookData = BIBLIA_DATA[randomBookName]; // Usar BIBLIA_DATA
+            const bookData = BIBLIA_DATA[randomBookName];
             
-            // Verifica que bookData exista y tenga capítulos
             if (!bookData || Object.keys(bookData).length === 0) {
                 continue; 
             }
@@ -116,9 +116,9 @@ async function displayVerseOfTheDay() {
             }
 
             randomChapterNum = chapterKeys[Math.floor(Math.random() * chapterKeys.length)];
-            const chapterVerses = bookData[String(randomChapterNum)]; // Versículos de ese capítulo
+            const chapterVerses = bookData[String(randomChapterNum)];
             
-            if (!chapterVerses || Object.keys(chapterVerses).length === 0) { // Verifica si el capítulo tiene versículos
+            if (!chapterVerses || Object.keys(chapterVerses).length === 0) {
                 continue;
             }
 
@@ -147,11 +147,10 @@ async function displayVerseOfTheDay() {
             // Guardar el nuevo versículo para hoy
             storedVerseData = {
                 date: todayDate,
-                verse: verseDetails // Guardamos los detalles completos
+                verse: verseDetails
             };
             localStorage.setItem('verseOfTheDay', JSON.stringify(storedVerseData));
         } else {
-            // Fallback si no se encontró un versículo después de muchos intentos
             verseToDisplay = "No se pudo cargar el versículo del día. Intenta de nuevo más tarde.";
             verseRef = "";
             verseDetails = null;
@@ -159,7 +158,6 @@ async function displayVerseOfTheDay() {
         }
     }
     
-    // Asegurarse de que los elementos existan antes de manipularlos
     if (verseOfTheDayText) {
         verseOfTheDayText.textContent = `"${verseToDisplay}"`;
     } else {
@@ -168,17 +166,15 @@ async function displayVerseOfTheDay() {
 
     if (verseOfTheDayReference) {
         verseOfTheDayReference.textContent = `- ${verseRef}`;
-        // Hacer clic en la referencia del versículo del día para ir a él
         verseOfTheDayReference.onclick = () => {
-            if (verseDetails) { // Usar verseDetails
+            if (verseDetails) {
                 const { book, chapter, verse } = verseDetails;
                 if (libroCombo && capituloEntry && versiculoEntry) {
                     libroCombo.value = book;
                     capituloEntry.value = chapter;
                     versiculoEntry.value = verse;
-                    updateCapitulosInfo(); // Asegura que la info del libro se actualice
+                    updateCapitulosInfo();
                     buscarVersiculo();
-                    // Opcional: Desplazarse a la sección de resultados
                     const resultadoSection = document.getElementById('resultado-area');
                     if (resultadoSection) {
                         resultadoSection.scrollIntoView({ behavior: 'smooth' });
@@ -193,7 +189,7 @@ async function displayVerseOfTheDay() {
     }
 }
 
-// --- NUEVA Función para un Versículo Aleatorio (al hacer clic en un botón) ---
+// --- Función para un Versículo Aleatorio (al hacer clic en un botón) ---
 async function displayRandomVerse() {
     if (Object.keys(BIBLIA_DATA).length === 0) {
         if (randomVerseOutputArea) {
@@ -406,14 +402,12 @@ function buscarTexto() {
 
     let includeRegex = null;
     if (includeTerms.length > 0) {
-        // Escapar caracteres especiales para usar en RegExp
         const pattern = includeTerms.map(term => exactPhrase ? term : `\\b${term}\\b`).join('|');
         includeRegex = new RegExp(pattern, 'gi');
     }
 
     let exactPhraseRegex = null;
     if (exactPhrase) {
-        // Escapar caracteres especiales para la frase exacta
         exactPhraseRegex = new RegExp(exactPhrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
     }
 
@@ -442,9 +436,8 @@ function buscarTexto() {
                         }
 
                         if (matches && includeRegex) {
-                            // Verifica que TODAS las palabras a incluir estén presentes (para la lógica AND)
                             for (const term of includeTerms) {
-                                if (!lowerCaseVerse.includes(term)) { // Simple 'contains' check
+                                if (!lowerCaseVerse.includes(term)) { 
                                     matches = false;
                                     break;
                                 }
@@ -458,14 +451,11 @@ function buscarTexto() {
                         if (matches) {
                             coincidencias++;
                             let highlightedText = textoVersiculo;
-                            // Resaltar la frase exacta primero para evitar que sea sobrescrita
                             if (exactPhraseRegex) {
                                 highlightedText = highlightedText.replace(exactPhraseRegex, (match) => `<span class="highlight">${match}</span>`);
                             }
-                            // Luego resaltar los términos individuales, asegurándose de no re-resaltar lo ya resaltado
                             if (includeRegex) {
                                 highlightedText = highlightedText.replace(includeRegex, (match) => {
-                                    // Evitar re-resaltar si ya es parte de un highlight
                                     if (match.includes('<span class="highlight">') || highlightedText.includes(`<span class="highlight">${match}</span>`)) {
                                         return match;
                                     }
@@ -473,7 +463,6 @@ function buscarTexto() {
                                 });
                             }
                             
-                            // Nuevo: Obtener notas y resaltados para este versículo
                             const verseId = `${libroNombre}_${capituloNum}_${versiculoNum}`;
                             const verseData = getVerseData(verseId);
                             const noteHtml = verseData && verseData.note ? `<div class="verse-note"><button class="note-delete-button" data-verse-id="${verseId}">&times;</button><div class="verse-note-text">${verseData.note}</div></div>` : '';
@@ -482,8 +471,8 @@ function buscarTexto() {
                             displayResult(
                                 `<div class="verse-entry">` +
                                 `<span class="verse-reference">${libroNombre} ${capituloNum}:${versiculoNum}` +
-                                `<button class="action-button" data-action="note" data-book="${libroNombre}" data-chapter="${capituloNum}" data-verse="${versiculoNum}">✏️ Nota</button>` +
-                                `<button class="action-button" data-action="highlight" data-book="${libroNombre}" data-chapter="${capituloNum}" data-verse="${versiculoNum}">✨ Resaltar</button>` +
+                                `<button class="action-button" data-action="note" data-book="${libroNombre}" data-chapter="${capituloNum}" data-verse="${versiculoNum}" data-verse-text="${encodeURIComponent(textoVersiculo)}">✏️ Nota</button>` + // AÑADIDO data-verse-text
+                                `<button class="action-button" data-action="highlight" data-book="${libroNombre}" data-chapter="${capituloNum}" data-verse="${versiculoNum}" data-verse-text="${encodeURIComponent(textoVersiculo)}">✨ Resaltar</button>` + // AÑADIDO data-verse-text
                                 `</span><br>` +
                                 `<span class="verse-number">${versiculoNum}. </span><span class="verse-text ${highlightClass}">${highlightedText}</span>` +
                                 `${noteHtml}</div><br>`,
@@ -501,10 +490,10 @@ function buscarTexto() {
         setStatus(`Búsqueda terminada: No se encontraron resultados para "${searchText}".`);
     } else {
         setStatus(`Búsqueda terminada: Se encontraron ${coincidencias} coincidencias para "${searchText}".`);
-        resultadoArea.scrollTop = 0; // Volver al inicio de los resultados
+        resultadoArea.scrollTop = 0;
     }
-    addActionButtonListeners(); // Añadir listeners a los nuevos botones
-    addDeleteNoteButtonListeners(); // Añadir listeners para borrar notas
+    addActionButtonListeners();
+    addDeleteNoteButtonListeners();
 }
 
 
@@ -528,8 +517,7 @@ async function loadBibleData() {
             INFO_LIBROS = await responseInfo.json();
         }
         
-        // Llenar el select de libros
-        if (libroCombo) { // Asegurarse de que el elemento exista antes de manipularlo
+        if (libroCombo) {
             libroCombo.innerHTML = ''; 
             LIBROS_BIBLIA.forEach(libro => {
                 const option = document.createElement('option');
@@ -539,7 +527,7 @@ async function loadBibleData() {
             });
 
             if (LIBROS_BIBLIA.length > 0) {
-                libroCombo.value = LIBROS_BIBLIA[0]; // Seleccionar el primer libro por defecto
+                libroCombo.value = LIBROS_BIBLIA[0];
                 updateCapitulosInfo();
                 displayBookInfo();
             }
@@ -549,7 +537,6 @@ async function loadBibleData() {
         
         setStatus('Datos de la Biblia cargados exitosamente. Seleccione un pasaje y presione Buscar.');
 
-        // Llamar a displayVerseOfTheDay después de cargar los datos
         displayVerseOfTheDay();
 
     } catch (error) {
@@ -640,20 +627,22 @@ function buscarVersiculo() {
         const textoVersiculo = capituloData[vNumStr];
         if (textoVersiculo) {
             versiculosEncontradosCount++;
-            // Nuevo: Obtener notas y resaltados para este versículo
             const verseId = `${libroNombreEspanol}_${capitulo}_${vNumStr}`;
             const verseData = getVerseData(verseId);
             const noteHtml = verseData && verseData.note ? `<div class="verse-note"><button class="note-delete-button" data-verse-id="${verseId}">&times;</button><div class="verse-note-text">${verseData.note}</div></div>` : '';
             const highlightClass = verseData && verseData.highlighted ? 'highlighted-verse' : '';
 
+           // Dentro de buscarVersiculo o buscarTexto, donde construyes htmlResultado
+// ...
             htmlResultado += 
                 `<div class="verse-entry">` +
                 `<span class="verse-reference">${libroNombreEspanol} ${capitulo}:${vNumStr}` +
-                `<button class="action-button" data-action="note" data-book="${libroNombreEspanol}" data-chapter="${capitulo}" data-verse="${vNumStr}">✏️ Nota</button>` +
-                `<button class="action-button" data-action="highlight" data-book="${libroNombreEspanol}" data-chapter="${capitulo}" data-verse="${vNumStr}">✨ Resaltar</button>` +
+                `<button class="action-button" data-action="note" data-book="${libroNombreEspanol}" data-chapter="${capitulo}" data-verse="${vNumStr}" data-verse-text="${encodeURIComponent(textoVersiculo)}">✏️ Nota</button>` + // AÑADIDO data-verse-text
+                `<button class="action-button" data-action="highlight" data-book="${libroNombreEspanol}" data-chapter="${capitulo}" data-verse="${vNumStr}" data-verse-text="${encodeURIComponent(textoVersiculo)}">✨ Resaltar</button>` + // AÑADIDO data-verse-text
                 `</span><br>` +
                 `<span class="verse-number">${vNumStr}. </span><span class="verse-text ${highlightClass}">${textoVersiculo}</span>` +
                 `${noteHtml}</div><br>`;
+// ...
         } else {
             htmlResultado += `<span class="error-text">Versículo '${vNumStr}' no encontrado en los datos locales.</span><br><br>`;
         }
@@ -666,70 +655,67 @@ function buscarVersiculo() {
     } else {
         setStatus('Error: No se encontraron versículos en el rango especificado.');
     }
-    addActionButtonListeners(); // Añadir listeners a los nuevos botones
-    addDeleteNoteButtonListeners(); // Añadir listeners para borrar notas
+    addActionButtonListeners();
+    addDeleteNoteButtonListeners();
 }
 
 // --- Funciones para Notas y Resaltados ---
 
-// Obtiene todos los datos de notas/resaltados de localStorage
 function getAllVerseData() {
     const data = localStorage.getItem('bibleNotesAndHighlights');
     return data ? JSON.parse(data) : {};
 }
 
-// Guarda todos los datos de notas/resaltados en localStorage
 function saveAllVerseData(data) {
     localStorage.setItem('bibleNotesAndHighlights', JSON.stringify(data));
 }
 
-// Obtiene los datos para un versículo específico
 function getVerseData(verseId) {
     const allData = getAllVerseData();
     return allData[verseId];
 }
 
-// Abre el modal de notas
-function openNoteModal(book, chapter, verse) {
+// --- Modificado: openNoteModal ahora toma el texto del versículo ---
+function openNoteModal(book, chapter, verse, verseText) {
     currentVerseForNote = `${book}_${chapter}_${verse}`;
+    currentVerseTextForNote = verseText; // Guardar el texto del versículo
     modalVerseRef.textContent = `Nota para: ${book} ${chapter}:${verse}`;
     
     const verseData = getVerseData(currentVerseForNote);
     if (verseData && verseData.note) {
         noteTextArea.value = verseData.note;
-        deleteNoteBtn.style.display = 'inline-block'; // Mostrar botón de eliminar si hay nota
+        deleteNoteBtn.style.display = 'inline-block';
     } else {
         noteTextArea.value = '';
-        deleteNoteBtn.style.display = 'none'; // Ocultar si no hay nota
+        deleteNoteBtn.style.display = 'none';
     }
-    noteModalOverlay.style.display = 'flex'; // Mostrar el modal
+    noteModalOverlay.style.display = 'flex';
 }
 
-// Cierra el modal de notas
 function closeNoteModal() {
     noteModalOverlay.style.display = 'none';
     currentVerseForNote = null;
+    currentVerseTextForNote = null; // Limpiar también el texto
     noteTextArea.value = '';
     deleteNoteBtn.style.display = 'none';
 }
 
-// Guarda la nota en localStorage
+// --- Modificado: saveNote ahora usa currentVerseTextForNote ---
 function saveNote() {
     if (!currentVerseForNote) return;
 
     const noteText = noteTextArea.value.trim();
     const allData = getAllVerseData();
 
-    // Extraer libro, capítulo y versículo del currentVerseForNote (e.g., "Genesis_1_1")
     const [book, chapter, verse] = currentVerseForNote.split('_');
-    // Construir la referencia legible
     const readableReference = `${book} ${chapter}:${verse}`;
 
     if (noteText) {
         allData[currentVerseForNote] = {
-            ...allData[currentVerseForNote], // Mantener highlighted si ya existe
+            ...allData[currentVerseForNote], 
             note: noteText,
-            reference: readableReference // <--- ASEGURA ESTO
+            reference: readableReference,
+            verseText: currentVerseTextForNote // <--- AHORA GUARDAMOS EL TEXTO
         };
     } else {
         if (allData[currentVerseForNote] && allData[currentVerseForNote].highlighted) {
@@ -740,54 +726,50 @@ function saveNote() {
     }
     saveAllVerseData(allData);
     closeNoteModal();
-    buscarVersiculo();
+    buscarVersiculo(); 
 }
 
-// Elimina la nota de localStorage
 function deleteNote() {
     if (!currentVerseForNote) return;
 
     const allData = getAllVerseData();
     if (allData[currentVerseForNote]) {
         if (allData[currentVerseForNote].highlighted) {
-            // Si hay resaltado, solo elimina la nota
             delete allData[currentVerseForNote].note;
         } else {
-            // Si no hay resaltado, elimina toda la entrada
             delete allData[currentVerseForNote];
         }
     }
     saveAllVerseData(allData);
     closeNoteModal();
-    buscarVersiculo(); // Vuelve a cargar el pasaje
-    // buscarTexto(); // O si estás en una búsqueda de texto
+    buscarVersiculo();
 }
 
-// Maneja el resaltado de un versículo
-function toggleHighlight(book, chapter, verse) {
+// --- Modificado: toggleHighlight ahora toma el texto del versículo ---
+function toggleHighlight(book, chapter, verse, verseText) {
     const verseId = `${book}_${chapter}_${verse}`;
     const allData = getAllVerseData();
-    const readableReference = `${book} ${chapter}:${verse}`; // <--- Definir aquí
+    const readableReference = `${book} ${chapter}:${verse}`;
 
     if (allData[verseId] && allData[verseId].highlighted) {
-        // Si ya está resaltado, lo desresaltamos
         if (allData[verseId].note) {
             delete allData[verseId].highlighted;
         } else {
             delete allData[verseId];
         }
     } else {
-        // Si no está resaltado, lo resaltamos
         allData[verseId] = {
             ...allData[verseId],
             highlighted: true,
-            reference: readableReference // <--- ASEGURA ESTO
+            reference: readableReference,
+            verseText: verseText // <--- AHORA GUARDAMOS EL TEXTO
         };
     }
     saveAllVerseData(allData);
     buscarVersiculo();
 }
-// Añade listeners a los botones de acción (nota y resaltar) después de cada renderizado
+
+// --- Modificado: addActionButtonListeners para pasar data-verse-text ---
 function addActionButtonListeners() {
     document.querySelectorAll('.action-button').forEach(button => {
         button.onclick = (event) => {
@@ -795,39 +777,35 @@ function addActionButtonListeners() {
             const book = event.target.dataset.book;
             const chapter = event.target.dataset.chapter;
             const verse = event.target.dataset.verse;
+            // DECODIFICAR el texto del versículo
+            const verseText = decodeURIComponent(event.target.dataset.verseText); 
 
             if (action === 'note') {
-                openNoteModal(book, chapter, verse);
+                openNoteModal(book, chapter, verse, verseText); // PASAR verseText
             } else if (action === 'highlight') {
-                toggleHighlight(book, chapter, verse);
+                toggleHighlight(book, chapter, verse, verseText); // PASAR verseText
             }
         };
     });
 }
 
-// Añade listeners a los botones de eliminar nota
 function addDeleteNoteButtonListeners() {
     document.querySelectorAll('.note-delete-button').forEach(button => {
         button.onclick = (event) => {
             const verseId = event.target.dataset.verseId;
-            // Configura currentVerseForNote para que deleteNote sepa qué borrar
             currentVerseForNote = verseId; 
             deleteNote();
         };
     });
 }
 
-
-// --- Función para Compartir Versículo (por implementar) ---
 function shareVerse() {
     setStatus('Función de compartir aún no implementada.');
     alert('Esta función de compartir está en desarrollo. ¡Pronto podrás compartir versículos!');
 }
 
-
-// --- Event Listeners y Carga Inicial ---
 document.addEventListener('DOMContentLoaded', () => {
-    loadBibleData(); // Carga inicial de datos
+    loadBibleData();
 
     if (libroCombo) {
         libroCombo.addEventListener('change', updateCapitulosInfo);
@@ -854,7 +832,6 @@ document.addEventListener('DOMContentLoaded', () => {
         randomVerseBtn.addEventListener('click', displayRandomVerse);
     }
     
-    // Listeners para el modal de notas
     if (closeModalBtn) {
         closeModalBtn.addEventListener('click', closeNoteModal);
     }
@@ -872,10 +849,28 @@ document.addEventListener('DOMContentLoaded', () => {
         deleteNoteBtn.addEventListener('click', deleteNote);
     }
 
-    // *** NUEVO: Event Listener para el botón "Mis Notas y Resaltados" ***
     if (myNotesBtn) {
         myNotesBtn.addEventListener('click', () => {
             window.location.href = 'biblioteca_notas.html'; 
         });
+    }
+
+    // Código para cargar un versículo específico al volver de bibliotecas_notas.html (si aplica)
+    const verseToLoad = sessionStorage.getItem('loadVerseOnStart');
+    if (verseToLoad) {
+        sessionStorage.removeItem('loadVerseOnStart'); // Limpiar después de usar
+        const { book, chapter, verse } = JSON.parse(verseToLoad);
+        if (libroCombo && capituloEntry && versiculoEntry) {
+            libroCombo.value = book;
+            capituloEntry.value = chapter;
+            versiculoEntry.value = verse;
+            updateCapitulosInfo();
+            buscarVersiculo();
+            // Abrir el modal de nota con un pequeño retraso para asegurar que el DOM esté listo
+            setTimeout(() => {
+                const fetchedVerseText = BIBLIA_DATA[book] && BIBLIA_DATA[book][chapter] ? BIBLIA_DATA[book][chapter][verse] : '';
+                openNoteModal(book, chapter, verse, fetchedVerseText);
+            }, 100); 
+        }
     }
 });

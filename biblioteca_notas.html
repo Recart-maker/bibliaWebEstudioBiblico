@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mis Notas y Resaltados - Biblia</title>
-    <link rel="stylesheet" href="style.css"> <style>
+    <link rel="stylesheet" href="style.css"> 
+    <style>
         /* Estilos específicos para esta página si los necesitas */
         .notes-container {
             max-width: 800px;
@@ -97,6 +98,19 @@
             background-color: #8a2be2;
             box-shadow: 0 0 15px rgba(138, 43, 226, 0.9);
         }
+        
+    /* ... tus estilos existentes ... */
+    .displayed-verse-text {
+        font-style: italic;
+        color: #B0B0B0; /* Un color ligeramente diferente para el texto del versículo */
+        margin-bottom: 10px;
+        border-left: 3px solid #00CCCC; /* Pequeño borde a la izquierda para resaltarlo */
+        padding-left: 10px;
+    }
+    .note-entry.highlighted-entry-border { /* Nuevo estilo para el borde de las entradas resaltadas */
+        border: 2px solid #FFD700; /* Borde amarillo neón */
+        box-shadow: 0 0 15px rgba(255, 215, 0, 0.5); /* Sombra neón amarilla */
+    }
     </style>
 </head>
 <body>
