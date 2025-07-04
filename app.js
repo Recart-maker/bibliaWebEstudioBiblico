@@ -25,7 +25,7 @@ const infoLibroAutor = document.getElementById('info-libro-autor');
 const infoLibroTema = document.getElementById('info-libro-tema');
 const infoLibroContexto = document.getElementById('info-libro-contexto');
 
-const searchTextEntry = document.getElementById('searchTextEntry'); // Corregido: ID en HTML es 'searchTextEntry'
+const searchTextEntry = document.getElementById('search-text-entry'); // Corregido: ID en HTML es 'search-text-entry'
 const searchTextBtn = document.getElementById('search-text-btn');
 
 const shareBtn = document.getElementById('share-btn');
@@ -45,6 +45,9 @@ const verseOfTheDayReference = document.getElementById('verse-of-the-day-referen
 // NUEVOS Elementos para Versículo Aleatorio (asegúrate de que existan en tu HTML)
 const randomVerseBtn = document.getElementById('random-verse-btn');
 const randomVerseOutputArea = document.getElementById('random-verse-output-area');
+
+// NUEVO: Referencia al botón "Mis Notas y Resaltados"
+const myNotesBtn = document.getElementById('my-notes-btn');
 
 
 let currentVerseForNote = null; // Para saber qué versículo estamos editando/notando
@@ -441,8 +444,6 @@ function buscarTexto() {
                         if (matches && includeRegex) {
                             // Verifica que TODAS las palabras a incluir estén presentes (para la lógica AND)
                             for (const term of includeTerms) {
-                                // Usar lowerCaseVerse.includes(term) para una verificación simple o
-                                // new RegExp(`\\b${term}\\b`, 'i').test(lowerCaseVerse) para palabras completas
                                 if (!lowerCaseVerse.includes(term)) { // Simple 'contains' check
                                     matches = false;
                                     break;
@@ -720,26 +721,27 @@ function saveNote() {
     const allData = getAllVerseData();
 
     if (noteText) {
-        // Asegurarse de que el objeto para el versículo exista
-        if (!allData[currentVerseForNote]) {
-            allData[currentVerseForNote] = {};
-        }
-        allData[currentVerseForNote].note = noteText;
+        allData[currentVerseForNote] = {
+            ...allData[currentVerseForNote], // Mantener highlighted si ya existe
+            note: noteText,
+            reference: modalVerseRef.textContent.replace('Nota para: ', '') // Guardar la referencia completa
+        };
     } else {
         // Si la nota está vacía, la eliminamos
-        if (allData[currentVerseForNote]) {
+        if (allData[currentVerseForNote] && allData[currentVerseForNote].highlighted) {
+            // Si solo se elimina la nota pero está resaltado, quitar la nota y mantener el resaltado
             delete allData[currentVerseForNote].note;
-            // Si no quedan ni nota ni resaltado, eliminar la entrada completa
-            if (!allData[currentVerseForNote].highlighted) {
-                delete allData[currentVerseForNote];
-            }
+        } else {
+            // Si no hay nota y no está resaltado, eliminar completamente la entrada
+            delete allData[currentVerseForNote];
         }
     }
     saveAllVerseData(allData);
     closeNoteModal();
-    // Vuelve a buscar el pasaje para actualizar la visualización
+    // Vuelve a cargar el pasaje actual para que la nota se muestre o se oculte
     buscarVersiculo(); 
-    setStatus('Nota guardada.');
+    // O si estás en una búsqueda de texto:
+    // buscarTexto(); // Esto dependerá de la última búsqueda realizada
 }
 
 // Elimina la nota de localStorage
@@ -748,47 +750,51 @@ function deleteNote() {
 
     const allData = getAllVerseData();
     if (allData[currentVerseForNote]) {
-        delete allData[currentVerseForNote].note;
-        // Si no quedan ni nota ni resaltado, eliminar la entrada completa
-        if (!allData[currentVerseForNote].highlighted) {
+        if (allData[currentVerseForNote].highlighted) {
+            // Si hay resaltado, solo elimina la nota
+            delete allData[currentVerseForNote].note;
+        } else {
+            // Si no hay resaltado, elimina toda la entrada
             delete allData[currentVerseForNote];
         }
     }
     saveAllVerseData(allData);
     closeNoteModal();
-    buscarVersiculo(); // Actualizar la visualización del pasaje actual
-    setStatus('Nota eliminada.');
+    buscarVersiculo(); // Vuelve a cargar el pasaje
+    // buscarTexto(); // O si estás en una búsqueda de texto
 }
 
-// Alterna el estado de resaltado de un versículo
+// Maneja el resaltado de un versículo
 function toggleHighlight(book, chapter, verse) {
     const verseId = `${book}_${chapter}_${verse}`;
     const allData = getAllVerseData();
 
-    if (!allData[verseId]) {
-        allData[verseId] = { highlighted: true }; // Crea y resalta si no existe
-    } else {
-        allData[verseId].highlighted = !allData[verseId].highlighted; // Invierte el estado
-        // Si el resaltado se desactiva y no hay nota, eliminar la entrada completa
-        if (!allData[verseId].highlighted && !allData[verseId].note) {
+    if (allData[verseId] && allData[verseId].highlighted) {
+        // Si ya está resaltado, lo desresaltamos
+        if (allData[verseId].note) {
+            // Si también tiene nota, solo quitamos el resaltado
+            delete allData[verseId].highlighted;
+        } else {
+            // Si no tiene nota, eliminamos la entrada completa
             delete allData[verseId];
         }
+    } else {
+        // Si no está resaltado, lo resaltamos
+        allData[verseId] = {
+            ...allData[verseId],
+            highlighted: true,
+            reference: `${book} ${chapter}:${verse}` // Aseguramos que la referencia se guarde
+        };
     }
     saveAllVerseData(allData);
-    buscarVersiculo(); // Vuelve a buscar para actualizar la visualización
-    setStatus(allData[verseId] && allData[verseId].highlighted ? 'Versículo resaltado.' : 'Resaltado quitado.');
+    buscarVersiculo(); // Vuelve a cargar el pasaje
+    // buscarTexto(); // O si estás en una búsqueda de texto
 }
 
-
-// Añadir Event Listeners a los botones de acción (Nota/Resaltar) dinámicamente
+// Añade listeners a los botones de acción (nota y resaltar) después de cada renderizado
 function addActionButtonListeners() {
-    // Es importante remover los listeners antes de añadir nuevos para evitar duplicados
-    // y problemas de memoria, especialmente si el HTML se regenera.
-    document.querySelectorAll('.action-button[data-action="note"], .action-button[data-action="highlight"]').forEach(button => {
-        // Clonar y reemplazar el elemento es una forma efectiva de remover todos los listeners existentes.
-        const newButton = button.cloneNode(true);
-        button.parentNode.replaceChild(newButton, button);
-        newButton.addEventListener('click', (event) => {
+    document.querySelectorAll('.action-button').forEach(button => {
+        button.onclick = (event) => {
             const action = event.target.dataset.action;
             const book = event.target.dataset.book;
             const chapter = event.target.dataset.chapter;
@@ -799,139 +805,81 @@ function addActionButtonListeners() {
             } else if (action === 'highlight') {
                 toggleHighlight(book, chapter, verse);
             }
-        });
+        };
     });
 }
 
-// Añadir Event Listeners a los botones de eliminar nota dinámicamente
+// Añade listeners a los botones de eliminar nota
 function addDeleteNoteButtonListeners() {
     document.querySelectorAll('.note-delete-button').forEach(button => {
-        const newButton = button.cloneNode(true);
-        button.parentNode.replaceChild(newButton, button);
-        newButton.addEventListener('click', (event) => {
+        button.onclick = (event) => {
             const verseId = event.target.dataset.verseId;
-            // Necesitamos parsear el verseId para obtener book, chapter, verse
-            // Formato: "Libro_Capitulo_Versiculo"
-            const parts = verseId.split('_');
-            if (parts.length === 3) {
-                const [book, chapter, verse] = parts;
-                // Si el modal está abierto para este versículo, lo cerramos y luego eliminamos la nota
-                if (currentVerseForNote === verseId) {
-                    closeNoteModal();
-                }
-                // Llamamos a la función de eliminación de nota genérica, que manejará el estado
-                deleteNoteAndHighlight(verseId); // Usaremos esta función para eliminar
-            } else {
-                console.error("ID de versículo inválido para eliminar nota:", verseId);
-            }
-        });
+            // Configura currentVerseForNote para que deleteNote sepa qué borrar
+            currentVerseForNote = verseId; 
+            deleteNote();
+        };
     });
 }
 
-// Función para eliminar nota y resaltado por ID de versículo
-function deleteNoteAndHighlight(verseId) {
-    if (confirm('¿Estás seguro de que quieres eliminar la nota y/o el resaltado de este versículo?')) {
-        const allData = getAllVerseData();
-        if (allData[verseId]) {
-            delete allData[verseId];
-            saveAllVerseData(allData);
-            setStatus('Nota y resaltado eliminados.');
-            // Re-renderizar la sección actual si aplica
-            const currentBook = libroCombo.value;
-            const currentChapter = capituloEntry.value;
-            if (currentBook && currentChapter) {
-                buscarVersiculo(); // Si estamos viendo un pasaje específico
-            } else if (searchTextEntry.value.trim() !== '') {
-                buscarTexto(); // Si estamos viendo resultados de búsqueda de texto
-            }
-        }
-    }
+
+// --- Función para Compartir Versículo (por implementar) ---
+function shareVerse() {
+    setStatus('Función de compartir aún no implementada.');
+    alert('Esta función de compartir está en desarrollo. ¡Pronto podrás compartir versículos!');
 }
 
 
-// --- Event Listeners principales (DOMContentLoaded) ---
+// --- Event Listeners y Carga Inicial ---
 document.addEventListener('DOMContentLoaded', () => {
-    // Carga los datos de la Biblia y resúmenes, y luego el versículo del día.
-    loadBibleData();
+    loadBibleData(); // Carga inicial de datos
 
-    // Event Listeners existentes
-    if (libroCombo) libroCombo.addEventListener('change', updateCapitulosInfo);
-    if (capituloEntry) capituloEntry.addEventListener('input', updateVersiculosInfo);
-    if (buscarBtn) buscarBtn.addEventListener('click', buscarVersiculo);
-    if (prevCapituloBtn) prevCapituloBtn.addEventListener('click', () => navigateCapitulo(-1));
-    if (nextCapituloBtn) nextCapituloBtn.addEventListener('click', () => navigateCapitulo(1));
-    if (searchTextBtn) searchTextBtn.addEventListener('click', buscarTexto);
+    if (libroCombo) {
+        libroCombo.addEventListener('change', updateCapitulosInfo);
+    }
+    if (capituloEntry) {
+        capituloEntry.addEventListener('input', updateVersiculosInfo);
+    }
+    if (buscarBtn) {
+        buscarBtn.addEventListener('click', buscarVersiculo);
+    }
+    if (prevCapituloBtn) {
+        prevCapituloBtn.addEventListener('click', () => navigateCapitulo(-1));
+    }
+    if (nextCapituloBtn) {
+        nextCapituloBtn.addEventListener('click', () => navigateCapitulo(1));
+    }
+    if (searchTextBtn) {
+        searchTextBtn.addEventListener('click', buscarTexto);
+    }
     if (shareBtn) {
-        shareBtn.addEventListener('click', () => {
-            const selection = window.getSelection().toString().trim();
-            if (selection) {
-                // Utiliza la API Web Share si está disponible
-                if (navigator.share) {
-                    navigator.share({
-                        title: 'Versículo Bíblico',
-                        text: selection,
-                        url: window.location.href // O una URL más específica si la implementas
-                    }).then(() => {
-                        setStatus('Contenido compartido con éxito.');
-                    }).catch(error => {
-                        console.error('Error al compartir:', error);
-                        setStatus('Error al compartir.');
-                    });
-                } else {
-                    // Fallback para navegadores que no soportan Web Share
-                    navigator.clipboard.writeText(selection)
-                        .then(() => {
-                            setStatus('Versículo copiado al portapapeles.');
-                            alert('Versículo copiado al portapapeles:\n\n' + selection);
-                        })
-                        .catch(err => {
-                            console.error('Error al copiar:', err);
-                            setStatus('No se pudo copiar el versículo.');
-                            alert('Por favor, selecciona el texto y usa Ctrl+C (o Cmd+C) para copiar.');
-                        });
-                }
-            } else {
-                setStatus('Selecciona un texto para compartir.');
-                alert('Por favor, selecciona el texto de un versículo para compartir.');
+        shareBtn.addEventListener('click', shareVerse); 
+    }
+    if (randomVerseBtn) {
+        randomVerseBtn.addEventListener('click', displayRandomVerse);
+    }
+    
+    // Listeners para el modal de notas
+    if (closeModalBtn) {
+        closeModalBtn.addEventListener('click', closeNoteModal);
+    }
+    if (noteModalOverlay) {
+        noteModalOverlay.addEventListener('click', (event) => {
+            if (event.target === noteModalOverlay) { 
+                closeNoteModal();
             }
         });
     }
+    if (saveNoteBtn) {
+        saveNoteBtn.addEventListener('click', saveNote);
+    }
+    if (deleteNoteBtn) {
+        deleteNoteBtn.addEventListener('click', deleteNote);
+    }
 
-    // Event Listeners para el modal de notas
-    if (closeModalBtn) closeModalBtn.addEventListener('click', closeNoteModal);
-    if (noteModalOverlay) noteModalOverlay.addEventListener('click', (e) => {
-        if (e.target === noteModalOverlay) {
-            closeNoteModal();
-        }
-    });
-    if (saveNoteBtn) saveNoteBtn.addEventListener('click', saveNote);
-    if (deleteNoteBtn) deleteNoteBtn.addEventListener('click', deleteNote);
-
-    // NUEVO Event Listener para el botón de Versículo Aleatorio
-    if (randomVerseBtn) randomVerseBtn.addEventListener('click', displayRandomVerse);
-
-    // Lógica para procesar parámetros de la URL al cargar la página
-    const urlParams = new URLSearchParams(window.location.search);
-    const bookFromUrl = urlParams.get('book');
-    const chapterFromUrl = urlParams.get('chapter');
-    const verseFromUrl = urlParams.get('verse');
-
-    if (bookFromUrl && chapterFromUrl) {
-        // Establecer valores y disparar búsqueda después de que los datos estén cargados
-        // Se hará en loadBibleData() una vez que los datos estén listos.
-        // Opcional: Podríamos tener una función separada que espere a que BIBLIA_DATA esté lleno
-        // o usar una promesa si la carga inicial es asíncrona y no hay un evento simple.
-        // Por ahora, asumimos que populateBookCombo ya está cargando los primeros valores.
-        // Si ves que esto no funciona al cargar por URL, podríamos necesitar una lógica de "espera".
-        if (libroCombo.value !== bookFromUrl) {
-             libroCombo.value = bookFromUrl;
-             updateCapitulosInfo(); // Asegura que se cargue la info del libro si cambió
-        }
-        capituloEntry.value = chapterFromUrl;
-        updateVersiculosInfo();
-        if (verseFromUrl) {
-            versiculoEntry.value = verseFromUrl;
-        }
-        buscarVersiculo();
+    // *** NUEVO: Event Listener para el botón "Mis Notas y Resaltados" ***
+    if (myNotesBtn) {
+        myNotesBtn.addEventListener('click', () => {
+            window.location.href = 'biblioteca_notas.html'; 
+        });
     }
 });

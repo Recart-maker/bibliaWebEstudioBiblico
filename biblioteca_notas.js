@@ -1,244 +1,182 @@
-// Funciones para Notas y Resaltados (copia de app.js)
-function getAllVerseData() {
-    const data = localStorage.getItem('bibleNotesAndHighlights');
-    return data ? JSON.parse(data) : {};
-}
+document.addEventListener('DOMContentLoaded', () => {
+    const notesList = document.getElementById('notes-list');
+    const loadingMessage = document.getElementById('loading-message');
+    const backToMainBtn = document.getElementById('back-to-main-btn');
 
-function saveAllVerseData(data) {
-    localStorage.setItem('bibleNotesAndHighlights', JSON.stringify(data));
-}
-
-// Elementos del DOM para la biblioteca de notas
-const notesContainer = document.getElementById('notes-container');
-const loadingMessage = document.getElementById('loading-message');
-const noNotesMessage = document.getElementById('no-notes-message');
-const backToFinderBtn = document.getElementById('back-to-finder-btn');
-const statusBar = document.getElementById('status-bar');
-
-// Elementos del Modal de Notas (reutilizados del index.html, pero con su propia lógica de modal aquí)
-const noteModalOverlay = document.getElementById('note-modal-overlay');
-const closeModalBtn = document.querySelector('.close-button');
-const modalVerseRef = document.getElementById('modal-verse-ref');
-const noteTextArea = document.getElementById('note-text-area');
-const saveNoteBtn = document.getElementById('save-note-btn');
-const deleteNoteBtn = document.getElementById('delete-note-btn');
-
-let currentVerseForNoteModal = null; // Para saber qué versículo estamos editando en el modal
-
-
-// --- Funciones del Modal (copia adaptada de app.js) ---
-
-function openNoteModal(verseId) {
-    currentVerseForNoteModal = verseId;
-    // Formatear el ID del versículo para el título del modal (ej. "Génesis_1_1" -> "Génesis 1:1")
-    const formattedRef = verseId.replace(/_/g, ' ').replace(' ', ':');
-    modalVerseRef.textContent = `Nota para: ${formattedRef}`;
-    
-    const allData = getAllVerseData();
-    const verseData = allData[currentVerseForNoteModal];
-
-    if (verseData && verseData.note) {
-        noteTextArea.value = verseData.note;
-        deleteNoteBtn.style.display = 'inline-block'; // Mostrar botón de eliminar si hay nota
-    } else {
-        noteTextArea.value = '';
-        deleteNoteBtn.style.display = 'none'; // Ocultar si no hay nota
+    // Función para obtener todos los datos de notas/resaltados de localStorage
+    function getAllVerseData() {
+        const data = localStorage.getItem('bibleNotesAndHighlights');
+        return data ? JSON.parse(data) : {};
     }
-    noteModalOverlay.style.display = 'flex'; // Mostrar el modal
-}
 
-function closeNoteModal() {
-    noteModalOverlay.style.display = 'none';
-    currentVerseForNoteModal = null;
-    noteTextArea.value = '';
-    deleteNoteBtn.style.display = 'none';
-    loadNotesAndHighlights(); // Recargar la lista después de cerrar el modal
-}
-
-function saveNote() {
-    if (!currentVerseForNoteModal) return;
-
-    const noteText = noteTextArea.value.trim();
-    const allData = getAllVerseData();
-
-    if (noteText) {
-        if (!allData[currentVerseForNoteModal]) {
-            allData[currentVerseForNoteModal] = {};
-        }
-        allData[currentVerseForNoteModal].note = noteText;
-    } else {
-        if (allData[currentVerseForNoteModal]) {
-            delete allData[currentVerseForNoteModal].note;
-            if (!allData[currentVerseForNoteModal].highlighted) {
-                delete allData[currentVerseForNoteModal];
-            }
-        }
+    // Función para guardar todos los datos de notas/resaltados en localStorage
+    function saveAllVerseData(data) {
+        localStorage.setItem('bibleNotesAndHighlights', JSON.stringify(data));
     }
-    saveAllVerseData(allData);
-    closeNoteModal();
-    setStatus('Nota guardada.');
-}
 
-function deleteNote() {
-    if (!currentVerseForNoteModal) return;
-
-    const allData = getAllVerseData();
-    if (allData[currentVerseForNoteModal]) {
-        delete allData[currentVerseForNoteModal].note;
-        if (!allData[currentVerseForNoteModal].highlighted) {
-            delete allData[currentVerseForNoteModal];
-        }
-    }
-    saveAllVerseData(allData);
-    closeNoteModal();
-    setStatus('Nota eliminada.');
-}
-
-function toggleHighlightFromBiblioteca(verseId) {
-    const allData = getAllVerseData();
-
-    if (!allData[verseId]) {
-        allData[verseId] = { highlighted: true };
-    } else {
-        allData[verseId].highlighted = !allData[verseId].highlighted;
-        if (!allData[verseId].highlighted && !allData[verseId].note) {
+    // Función para eliminar una nota/resaltado específico
+    function deleteNoteOrHighlight(verseId) {
+        let allData = getAllVerseData();
+        if (confirm(`¿Estás seguro de que quieres eliminar esta entrada para ${allData[verseId].reference}?`)) {
             delete allData[verseId];
+            saveAllVerseData(allData);
+            displayNotesAndHighlights(); // Volver a mostrar la lista actualizada
         }
     }
-    saveAllVerseData(allData);
-    loadNotesAndHighlights(); // Recargar la lista para que se actualice el estado
-    setStatus(allData[verseId] && allData[verseId].highlighted ? 'Versículo resaltado.' : 'Resaltado quitado.');
-}
 
-
-// --- Lógica principal para cargar y mostrar notas ---
-
-function loadNotesAndHighlights() {
-    loadingMessage.style.display = 'block';
-    noNotesMessage.style.display = 'none';
-    notesContainer.innerHTML = ''; // Limpiar contenedor
-
-    const allVerseData = getAllVerseData();
-    const sortedVerseIds = Object.keys(allVerseData).sort((a, b) => {
-        // Simple sorting for demonstration:
-        // You might want a more sophisticated sort (by book order, then chapter, then verse)
-        // This sorts alphabetically by string ID
-        return a.localeCompare(b);
-    });
-
-    if (sortedVerseIds.length === 0) {
-        loadingMessage.style.display = 'none';
-        noNotesMessage.style.display = 'block';
-        setStatus('No hay notas ni resaltados guardados.');
-        return;
-    }
-
-    let notesHtml = '';
-    sortedVerseIds.forEach(verseId => {
-        const data = allVerseData[verseId];
-        
-        let typeClass = '';
-        let typeLabel = '';
-        if (data.note && data.highlighted) {
-            typeClass = 'type-both';
-            typeLabel = 'Nota y Resaltado';
-        } else if (data.note) {
-            typeClass = 'type-note';
-            typeLabel = 'Nota';
-        } else if (data.highlighted) {
-            typeClass = 'type-highlight';
-            typeLabel = 'Resaltado';
-        }
-
-        // Formatear el ID del versículo para mostrar
-        const formattedRef = verseId.replace(/_/g, ' ').replace(' ', ':'); // Ej: "Génesis_1_1" -> "Génesis 1:1"
-
-        notesHtml += `
-            <div class="note-item">
-                <div class="note-item-header">
-                    <span class="note-item-ref" data-verse-id="${verseId}">${formattedRef}</span>
-                    <span class="note-item-type ${typeClass}">${typeLabel}</span>
-                </div>
-                ${data.note ? `<p class="note-item-text">${data.note}</p>` : ''}
-                <div class="note-item-actions">
-                    <button class="neon-button note-item-edit-btn" data-verse-id="${verseId}">Editar Nota</button>
-                    <button class="neon-button note-item-highlight-toggle-btn ${data.highlighted ? '' : 'highlighted-off'}" data-verse-id="${verseId}">
-                        ${data.highlighted ? 'Quitar Resaltado' : 'Resaltar'}
-                    </button>
-                    <button class="neon-button note-item-delete-btn" data-verse-id="${verseId}">Eliminar Todo</button>
-                </div>
-            </div>
-        `;
-    });
-
-    notesContainer.innerHTML = notesHtml;
-    loadingMessage.style.display = 'none';
-    addNoteItemListeners(); // Añadir listeners a los nuevos elementos
-    setStatus(`Mostrando ${sortedVerseIds.length} notas y resaltados.`);
-}
-
-function setStatus(message) {
-    statusBar.textContent = message;
-}
-
-// --- Event Listeners ---
-
-// Botón "Volver al Buscador"
-backToFinderBtn.addEventListener('click', () => {
-    // Redirige a la página principal del buscador
-    window.location.href = 'index.html'; 
-});
-
-// Event Listeners del Modal de Notas (para esta página)
-closeModalBtn.addEventListener('click', closeNoteModal);
-saveNoteBtn.addEventListener('click', saveNote);
-deleteNoteBtn.addEventListener('click', deleteNote);
-noteModalOverlay.addEventListener('click', (event) => {
-    if (event.target === noteModalOverlay) {
-        closeNoteModal();
-    }
-});
-
-
-// Añadir Event Listeners a los elementos dinámicamente creados
-function addNoteItemListeners() {
-    document.querySelectorAll('.note-item-ref').forEach(refElement => {
-        refElement.onclick = (event) => {
-            const verseId = event.target.dataset.verseId;
-            // Redirige al buscador y pasa los parámetros del versículo
-            const [book, chapter, verse] = verseId.split('_');
-            window.location.href = `index.html?book=${encodeURIComponent(book)}&chapter=${chapter}&verse=${verse}`;
-        };
-    });
-
-    document.querySelectorAll('.note-item-edit-btn').forEach(button => {
-        button.onclick = (event) => {
-            const verseId = event.target.dataset.verseId;
-            openNoteModal(verseId);
-        };
-    });
-
-    document.querySelectorAll('.note-item-highlight-toggle-btn').forEach(button => {
-        button.onclick = (event) => {
-            const verseId = event.target.dataset.verseId;
-            toggleHighlightFromBiblioteca(verseId);
-        };
-    });
-
-    document.querySelectorAll('.note-item-delete-btn').forEach(button => {
-        button.onclick = (event) => {
-            const verseId = event.target.dataset.verseId;
-            if (confirm(`¿Estás seguro de que quieres eliminar la nota y el resaltado para ${verseId.replace(/_/g, ' ').replace(' ', ':')}?`)) {
-                const allData = getAllVerseData();
-                delete allData[verseId];
+    // Función para eliminar solo la nota, manteniendo el resaltado si existe
+    function deleteOnlyNote(verseId) {
+        let allData = getAllVerseData();
+        if (allData[verseId] && allData[verseId].note) {
+            if (confirm(`¿Estás seguro de que quieres eliminar solo la nota para ${allData[verseId].reference}?`)) {
+                delete allData[verseId].note;
+                // Si ya no hay ni nota ni resaltado, eliminar la entrada completa
+                if (!allData[verseId].highlighted) {
+                    delete allData[verseId];
+                }
                 saveAllVerseData(allData);
-                loadNotesAndHighlights(); // Recargar la lista después de eliminar
-                setStatus('Nota y resaltado eliminados.');
+                displayNotesAndHighlights();
             }
-        };
-    });
-}
+        }
+    }
+
+    // Función para eliminar solo el resaltado, manteniendo la nota si existe
+    function deleteOnlyHighlight(verseId) {
+        let allData = getAllVerseData();
+        if (allData[verseId] && allData[verseId].highlighted) {
+            if (confirm(`¿Estás seguro de que quieres eliminar solo el resaltado para ${allData[verseId].reference}?`)) {
+                delete allData[verseId].highlighted;
+                // Si ya no hay ni nota ni resaltado, eliminar la entrada completa
+                if (!allData[verseId].note) {
+                    delete allData[verseId];
+                }
+                saveAllVerseData(allData);
+                displayNotesAndHighlights();
+            }
+        }
+    }
+
+    // Función para mostrar todas las notas y resaltados
+    function displayNotesAndHighlights() {
+        const allData = getAllVerseData();
+        let htmlContent = '';
+        let hasContent = false;
+
+        // Convertir el objeto a un array y ordenar por referencia para una mejor visualización
+        const sortedVerseIds = Object.keys(allData).sort((a, b) => {
+            // Ejemplo de ordenamiento: libro, luego capítulo, luego versículo
+            const [bookA, chapterA, verseA] = a.split('_');
+            const [bookB, chapterB, verseB] = b.split('_');
+
+            // Podrías necesitar un mapeo de nombres de libros a números para ordenar correctamente
+            // Por ahora, solo ordena alfabéticamente por libro, luego numéricamente por capítulo y versículo
+            if (bookA !== bookB) return bookA.localeCompare(bookB);
+            if (parseInt(chapterA) !== parseInt(chapterB)) return parseInt(chapterA) - parseInt(chapterB);
+            return parseInt(verseA) - parseInt(verseB);
+        });
+
+        if (sortedVerseIds.length > 0) {
+            hasContent = true;
+            sortedVerseIds.forEach(verseId => {
+                const data = allData[verseId];
+                const reference = data.reference;
+                const note = data.note;
+                const highlighted = data.highlighted;
+
+                if (note) {
+                    htmlContent += `
+                        <div class="note-entry">
+                            <h3>Nota para ${reference}</h3>
+                            <p class="note-text">${note}</p>
+                            <div class="action-buttons">
+                                <button class="edit-btn" data-verse-id="${verseId}" data-type="note">Editar Nota</button>
+                                <button class="delete-btn" data-verse-id="${verseId}" data-type="note-only">Eliminar Solo Nota</button>
+                                <button class="delete-btn" data-verse-id="${verseId}" data-type="all">Eliminar Toda Entrada</button>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                if (highlighted && !note) { // Mostrar resaltado solo si no hay nota (ya que la nota incluye el resaltado visualmente en app.js)
+                    htmlContent += `
+                        <div class="highlight-entry">
+                            <h3>Versículo Resaltado: ${reference}</h3>
+                            <p class="highlight-text"><em>Este versículo está resaltado.</em></p>
+                            <div class="action-buttons">
+                                <button class="unhighlight-btn" data-verse-id="${verseId}" data-type="highlight-only">Quitar Resaltado</button>
+                                <button class="delete-btn" data-verse-id="${verseId}" data-type="all">Eliminar Toda Entrada</button>
+                            </div>
+                        </div>
+                    `;
+                } else if (highlighted && note) { // Si hay nota y también está resaltado
+                     htmlContent += `
+                        <div class="highlight-entry">
+                            <h3>Versículo con Nota y Resaltado: ${reference}</h3>
+                            <p class="highlight-text"><em>(También está resaltado)</em></p>
+                            <div class="action-buttons">
+                                <button class="unhighlight-btn" data-verse-id="${verseId}" data-type="highlight-only">Quitar Resaltado</button>
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+        }
+
+        if (!hasContent) {
+            notesList.innerHTML = '<p class="empty-message">No tienes notas o resaltados guardados aún. ¡Vuelve a la página principal y empieza a usarlos!</p>';
+        } else {
+            notesList.innerHTML = htmlContent;
+        }
+
+        // Añadir listeners a los nuevos botones (Editar, Eliminar, Quitar Resaltado)
+        addNotesPageActionListeners();
+    }
+
+    function addNotesPageActionListeners() {
+        document.querySelectorAll('.edit-btn').forEach(button => {
+            button.addEventListener('click', (event) => {
+                // Para editar, redirigir al index.html y cargar el versículo
+                const verseId = event.target.dataset.verseId;
+                const [book, chapter, verse] = verseId.split('_');
+                // Almacenar en sessionStorage para que index.html sepa qué cargar
+                sessionStorage.setItem('loadVerseOnStart', JSON.stringify({ book, chapter, verse }));
+                window.location.href = 'index.html';
+            });
+        });
+
+        document.querySelectorAll('.delete-btn').forEach(button => {
+            button.addEventListener('click', (event) => {
+                const verseId = event.target.dataset.verseId;
+                const type = event.target.dataset.type;
+                if (type === 'all') {
+                    deleteNoteOrHighlight(verseId);
+                } else if (type === 'note-only') {
+                    deleteOnlyNote(verseId);
+                }
+            });
+        });
+
+        document.querySelectorAll('.unhighlight-btn').forEach(button => {
+            button.addEventListener('click', (event) => {
+                const verseId = event.target.dataset.verseId;
+                deleteOnlyHighlight(verseId);
+            });
+        });
+    }
 
 
-// Cargar las notas y resaltados al cargar la página
-document.addEventListener('DOMContentLoaded', loadNotesAndHighlights);
+    // Listener para el botón "Volver a la Biblia"
+    if (backToMainBtn) {
+        backToMainBtn.addEventListener('click', () => {
+            window.location.href = 'index.html'; // Redirige a la página principal
+        });
+    }
+
+    // Ocultar mensaje de carga y mostrar contenido
+    if (loadingMessage) {
+        loadingMessage.style.display = 'none';
+    }
+
+    // Mostrar las notas y resaltados al cargar la página
+    displayNotesAndHighlights();
+});
