@@ -1,10 +1,11 @@
 const JSON_FILE_NAME = 'libros_biblia.json';
 const INFO_FILE_NAME = 'resumen_libros.json';
 let LIBROS_BIBLIA = [];
-let BIBLIA_DATA = {};
-let INFO_LIBROS = {};
+let BIBLIA_DATA = {}; // Contendrá los datos de la Biblia cargados
+let INFO_LIBROS = {}; // Contendrá la información resumida de los libros
 
-// Referencias a los elementos del DOM
+// --- Referencias a los elementos del DOM ---
+// Asegúrate de que estos IDs existan en tu index.html
 const libroCombo = document.getElementById('libro-combo');
 const capituloEntry = document.getElementById('capitulo-entry');
 const versiculoEntry = document.getElementById('versiculo-entry');
@@ -24,7 +25,7 @@ const infoLibroAutor = document.getElementById('info-libro-autor');
 const infoLibroTema = document.getElementById('info-libro-tema');
 const infoLibroContexto = document.getElementById('info-libro-contexto');
 
-const searchTextEntry = document.getElementById('search-text-entry');
+const searchTextEntry = document.getElementById('searchTextEntry'); // Corregido: ID en HTML es 'searchTextEntry'
 const searchTextBtn = document.getElementById('search-text-btn');
 
 const shareBtn = document.getElementById('share-btn');
@@ -36,6 +37,15 @@ const modalVerseRef = document.getElementById('modal-verse-ref');
 const noteTextArea = document.getElementById('note-text-area');
 const saveNoteBtn = document.getElementById('save-note-btn');
 const deleteNoteBtn = document.getElementById('delete-note-btn');
+
+// Elementos del Versículo del Día (asegúrate de que existan en tu HTML)
+const verseOfTheDayText = document.getElementById('verse-of-the-day-text');
+const verseOfTheDayReference = document.getElementById('verse-of-the-day-reference');
+
+// NUEVOS Elementos para Versículo Aleatorio (asegúrate de que existan en tu HTML)
+const randomVerseBtn = document.getElementById('random-verse-btn');
+const randomVerseOutputArea = document.getElementById('random-verse-output-area');
+
 
 let currentVerseForNote = null; // Para saber qué versículo estamos editando/notando
 
@@ -51,6 +61,200 @@ function displayResult(htmlContent, append = false) {
 function setStatus(message) {
     statusBar.textContent = message;
 }
+
+// --- Funciones para el Versículo del Día ---
+
+function getTodayDateString() {
+    const today = new Date();
+    return today.toISOString().split('T')[0]; // Formato YYYY-MM-DD
+}
+
+async function displayVerseOfTheDay() {
+    // Si los datos de la Biblia no están cargados, salimos o mostramos un mensaje de carga
+    if (Object.keys(BIBLIA_DATA).length === 0) {
+        if (verseOfTheDayText) verseOfTheDayText.textContent = "Cargando versículo...";
+        if (verseOfTheDayReference) verseOfTheDayReference.textContent = "";
+        return;
+    }
+
+    const todayDate = getTodayDateString();
+    let storedVerseData = JSON.parse(localStorage.getItem('verseOfTheDay')) || {};
+
+    let verseToDisplay = null;
+    let verseRef = null;
+    let verseDetails = null; // Para almacenar libro, capítulo, versículo para el clic
+
+    if (storedVerseData.date === todayDate && storedVerseData.verse) {
+        // Si ya tenemos un versículo guardado para hoy, lo usamos
+        verseToDisplay = storedVerseData.verse.text;
+        verseRef = storedVerseData.verse.reference;
+        verseDetails = storedVerseData.verse; // Usar los detalles guardados
+    } else {
+        // Si no, generamos uno nuevo
+        const allBooks = Object.keys(BIBLIA_DATA); // Usar BIBLIA_DATA aquí
+        let randomBookName, randomChapterNum, randomVerseNum;
+        let foundVerse = false;
+        let attempts = 0;
+        const maxAttempts = 100; // Para evitar bucles infinitos si los datos son extraños
+
+        while (!foundVerse && attempts < maxAttempts) {
+            attempts++;
+            randomBookName = allBooks[Math.floor(Math.random() * allBooks.length)];
+            const bookData = BIBLIA_DATA[randomBookName]; // Usar BIBLIA_DATA
+            
+            // Verifica que bookData exista y tenga capítulos
+            if (!bookData || Object.keys(bookData).length === 0) {
+                continue; 
+            }
+
+            const chapterKeys = Object.keys(bookData).map(Number).sort((a,b)=>a-b);
+            if (chapterKeys.length === 0) {
+                continue;
+            }
+
+            randomChapterNum = chapterKeys[Math.floor(Math.random() * chapterKeys.length)];
+            const chapterVerses = bookData[String(randomChapterNum)]; // Versículos de ese capítulo
+            
+            if (!chapterVerses || Object.keys(chapterVerses).length === 0) { // Verifica si el capítulo tiene versículos
+                continue;
+            }
+
+            const verseKeys = Object.keys(chapterVerses).map(Number).sort((a,b)=>a-b);
+            if (verseKeys.length === 0) {
+                continue;
+            }
+            randomVerseNum = verseKeys[Math.floor(Math.random() * verseKeys.length)];
+
+            // Asegurarse de que el versículo realmente existe
+            if (chapterVerses[String(randomVerseNum)]) {
+                verseToDisplay = chapterVerses[String(randomVerseNum)];
+                verseRef = `${randomBookName} ${randomChapterNum}:${randomVerseNum}`;
+                verseDetails = { // Guardar los detalles para uso futuro
+                    text: verseToDisplay,
+                    reference: verseRef,
+                    book: randomBookName,
+                    chapter: randomChapterNum,
+                    verse: randomVerseNum
+                };
+                foundVerse = true;
+            }
+        }
+
+        if (foundVerse) {
+            // Guardar el nuevo versículo para hoy
+            storedVerseData = {
+                date: todayDate,
+                verse: verseDetails // Guardamos los detalles completos
+            };
+            localStorage.setItem('verseOfTheDay', JSON.stringify(storedVerseData));
+        } else {
+            // Fallback si no se encontró un versículo después de muchos intentos
+            verseToDisplay = "No se pudo cargar el versículo del día. Intenta de nuevo más tarde.";
+            verseRef = "";
+            verseDetails = null;
+            console.error("No se pudo encontrar un versículo aleatorio después de muchos intentos. Revisa la estructura de libros_biblia.json");
+        }
+    }
+    
+    // Asegurarse de que los elementos existan antes de manipularlos
+    if (verseOfTheDayText) {
+        verseOfTheDayText.textContent = `"${verseToDisplay}"`;
+    } else {
+        console.warn("Elemento 'verse-of-the-day-text' no encontrado.");
+    }
+
+    if (verseOfTheDayReference) {
+        verseOfTheDayReference.textContent = `- ${verseRef}`;
+        // Hacer clic en la referencia del versículo del día para ir a él
+        verseOfTheDayReference.onclick = () => {
+            if (verseDetails) { // Usar verseDetails
+                const { book, chapter, verse } = verseDetails;
+                if (libroCombo && capituloEntry && versiculoEntry) {
+                    libroCombo.value = book;
+                    capituloEntry.value = chapter;
+                    versiculoEntry.value = verse;
+                    updateCapitulosInfo(); // Asegura que la info del libro se actualice
+                    buscarVersiculo();
+                    // Opcional: Desplazarse a la sección de resultados
+                    const resultadoSection = document.getElementById('resultado-area');
+                    if (resultadoSection) {
+                        resultadoSection.scrollIntoView({ behavior: 'smooth' });
+                    }
+                } else {
+                    console.warn("Elementos de entrada (libro, capítulo, versículo) no encontrados para el clic del versículo del día.");
+                }
+            }
+        };
+    } else {
+        console.warn("Elemento 'verse-of-the-day-reference' no encontrado.");
+    }
+}
+
+// --- NUEVA Función para un Versículo Aleatorio (al hacer clic en un botón) ---
+async function displayRandomVerse() {
+    if (Object.keys(BIBLIA_DATA).length === 0) {
+        if (randomVerseOutputArea) {
+            randomVerseOutputArea.innerHTML = '<p class="error-text">Datos de la Biblia no cargados. Inténtalo de nuevo más tarde.</p>';
+        }
+        setStatus("Error: Datos de la Biblia no disponibles para versículo aleatorio.");
+        return;
+    }
+
+    if (randomVerseOutputArea) {
+        randomVerseOutputArea.innerHTML = '<p style="color: #00FFCC; text-align: center;">Buscando un versículo aleatorio...</p>';
+    }
+
+    try {
+        const allBooks = Object.keys(BIBLIA_DATA);
+        if (allBooks.length === 0) {
+            throw new Error("No hay libros disponibles en los datos de la Biblia.");
+        }
+        const randomBookName = allBooks[Math.floor(Math.random() * allBooks.length)];
+        const bookData = BIBLIA_DATA[randomBookName];
+
+        if (!bookData || Object.keys(bookData).length === 0) {
+            throw new Error(`Libro ${randomBookName} no tiene capítulos válidos.`);
+        }
+        const chapterKeys = Object.keys(bookData).map(Number).sort((a,b)=>a-b);
+        if (chapterKeys.length === 0) {
+            throw new Error(`Libro ${randomBookName} no tiene capítulos válidos.`);
+        }
+
+        const randomChapterNum = chapterKeys[Math.floor(Math.random() * chapterKeys.length)];
+        const chapterVerses = bookData[String(randomChapterNum)];
+
+        if (!chapterVerses || Object.keys(chapterVerses).length === 0) {
+            throw new Error(`Capítulo ${randomChapterNum} de ${randomBookName} no tiene versículos válidos.`);
+        }
+        const verseKeys = Object.keys(chapterVerses).map(Number).sort((a,b)=>a-b);
+        if (verseKeys.length === 0) {
+            throw new Error(`Capítulo ${randomChapterNum} de ${randomBookName} no tiene versículos válidos.`);
+        }
+
+        const randomVerseNum = verseKeys[Math.floor(Math.random() * verseKeys.length)];
+        const verseText = chapterVerses[String(randomVerseNum)];
+
+        const reference = `${randomBookName} ${randomChapterNum}:${randomVerseNum}`;
+
+        if (randomVerseOutputArea) {
+            randomVerseOutputArea.innerHTML = `
+                <div class="verse-entry">
+                    <span class="verse-reference">${reference}</span>
+                    <span class="verse-text">"${verseText}"</span>
+                </div>
+            `;
+        }
+        setStatus(`Versículo aleatorio cargado: ${reference}`);
+
+    } catch (error) {
+        console.error("Error al obtener versículo aleatorio:", error);
+        if (randomVerseOutputArea) {
+            randomVerseOutputArea.innerHTML = '<p class="error-text">No se pudo cargar el versículo aleatorio. Inténtalo de nuevo.</p>';
+        }
+        setStatus("Error al cargar versículo aleatorio.");
+    }
+}
+
 
 // --- Funciones de Información de Capítulos/Versículos ---
 
@@ -88,13 +292,19 @@ function updateVersiculosInfo() {
 function navigateCapitulo(direction) {
     let currentLibroIndex = LIBROS_BIBLIA.indexOf(libroCombo.value);
     let currentCapitulo = parseInt(capituloEntry.value);
-
+    
+    // Si el capítulo actual no es un número válido, intenta establecerlo al primero del libro.
     if (isNaN(currentCapitulo)) {
         const libroData = BIBLIA_DATA[libroCombo.value];
         if (libroData) {
             const capitulosDelLibro = Object.keys(libroData).map(Number).sort((a,b)=>a-b);
-            currentCapitulo = capitulosDelLibro[0];
-            capituloEntry.value = currentCapitulo;
+            if (capitulosDelLibro.length > 0) {
+                currentCapitulo = capitulosDelLibro[0];
+                capituloEntry.value = currentCapitulo;
+            } else {
+                setStatus('El libro seleccionado no tiene capítulos.');
+                return;
+            }
         } else {
             setStatus('Seleccione un libro válido.');
             return;
@@ -111,9 +321,10 @@ function navigateCapitulo(direction) {
 
         if (nextCapitulo >= minCapitulo && nextCapitulo <= maxCapitulo) {
             capituloEntry.value = nextCapitulo;
-            versiculoEntry.value = '1';
+            versiculoEntry.value = '1'; // Al navegar capítulo, ir al versículo 1
             buscarVersiculo();
         } else {
+            // Intentar ir al siguiente/anterior libro
             let nextLibroIndex = currentLibroIndex;
             if (direction === 1 && currentLibroIndex < LIBROS_BIBLIA.length - 1) {
                 nextLibroIndex++;
@@ -126,9 +337,9 @@ function navigateCapitulo(direction) {
                 libroData = BIBLIA_DATA[LIBROS_BIBLIA[nextLibroIndex]];
                 capitulosDelLibro = Object.keys(libroData).map(Number).sort((a,b)=>a-b);
 
-                if (direction === 1) {
+                if (direction === 1) { // Si avanzamos, ir al primer capítulo del nuevo libro
                     capituloEntry.value = capitulosDelLibro[0];
-                } else {
+                } else { // Si retrocedemos, ir al último capítulo del nuevo libro
                     capituloEntry.value = capitulosDelLibro[capitulosDelLibro.length - 1];
                 }
                 versiculoEntry.value = '1';
@@ -192,13 +403,15 @@ function buscarTexto() {
 
     let includeRegex = null;
     if (includeTerms.length > 0) {
+        // Escapar caracteres especiales para usar en RegExp
         const pattern = includeTerms.map(term => exactPhrase ? term : `\\b${term}\\b`).join('|');
         includeRegex = new RegExp(pattern, 'gi');
     }
 
     let exactPhraseRegex = null;
     if (exactPhrase) {
-        exactPhraseRegex = new RegExp(exactPhrase, 'gi');
+        // Escapar caracteres especiales para la frase exacta
+        exactPhraseRegex = new RegExp(exactPhrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
     }
 
     let excludeRegex = null;
@@ -226,8 +439,11 @@ function buscarTexto() {
                         }
 
                         if (matches && includeRegex) {
+                            // Verifica que TODAS las palabras a incluir estén presentes (para la lógica AND)
                             for (const term of includeTerms) {
-                                if (!lowerCaseVerse.includes(term)) {
+                                // Usar lowerCaseVerse.includes(term) para una verificación simple o
+                                // new RegExp(`\\b${term}\\b`, 'i').test(lowerCaseVerse) para palabras completas
+                                if (!lowerCaseVerse.includes(term)) { // Simple 'contains' check
                                     matches = false;
                                     break;
                                 }
@@ -241,12 +457,15 @@ function buscarTexto() {
                         if (matches) {
                             coincidencias++;
                             let highlightedText = textoVersiculo;
+                            // Resaltar la frase exacta primero para evitar que sea sobrescrita
                             if (exactPhraseRegex) {
                                 highlightedText = highlightedText.replace(exactPhraseRegex, (match) => `<span class="highlight">${match}</span>`);
                             }
+                            // Luego resaltar los términos individuales, asegurándose de no re-resaltar lo ya resaltado
                             if (includeRegex) {
                                 highlightedText = highlightedText.replace(includeRegex, (match) => {
-                                    if (match.includes('<span class="highlight">')) {
+                                    // Evitar re-resaltar si ya es parte de un highlight
+                                    if (match.includes('<span class="highlight">') || highlightedText.includes(`<span class="highlight">${match}</span>`)) {
                                         return match;
                                     }
                                     return `<span class="highlight">${match}</span>`;
@@ -281,7 +500,7 @@ function buscarTexto() {
         setStatus(`Búsqueda terminada: No se encontraron resultados para "${searchText}".`);
     } else {
         setStatus(`Búsqueda terminada: Se encontraron ${coincidencias} coincidencias para "${searchText}".`);
-        resultadoArea.scrollTop = 0;
+        resultadoArea.scrollTop = 0; // Volver al inicio de los resultados
     }
     addActionButtonListeners(); // Añadir listeners a los nuevos botones
     addDeleteNoteButtonListeners(); // Añadir listeners para borrar notas
@@ -294,7 +513,7 @@ async function loadBibleData() {
     try {
         const responseBiblia = await fetch(JSON_FILE_NAME);
         if (!responseBiblia.ok) {
-            throw new Error(`No se encontró el archivo '${JSON_FILE_NAME}'. Asegúrate de que esté en el mismo directorio.`);
+            throw new Error(`No se encontró el archivo '${JSON_FILE_NAME}'. Asegúrate de que esté en el mismo directorio o la ruta sea correcta.`);
         }
         const dataBiblia = await responseBiblia.json();
         LIBROS_BIBLIA = dataBiblia.libros_biblia_espanol || [];
@@ -308,20 +527,29 @@ async function loadBibleData() {
             INFO_LIBROS = await responseInfo.json();
         }
         
-        libroCombo.innerHTML = ''; 
-        LIBROS_BIBLIA.forEach(libro => {
-            const option = document.createElement('option');
-            option.value = libro;
-            option.textContent = libro;
-            libroCombo.appendChild(option);
-        });
+        // Llenar el select de libros
+        if (libroCombo) { // Asegurarse de que el elemento exista antes de manipularlo
+            libroCombo.innerHTML = ''; 
+            LIBROS_BIBLIA.forEach(libro => {
+                const option = document.createElement('option');
+                option.value = libro;
+                option.textContent = libro;
+                libroCombo.appendChild(option);
+            });
 
-        if (LIBROS_BIBLIA.length > 0) {
-            libroCombo.value = LIBROS_BIBLIA[0];
-            updateCapitulosInfo();
-            displayBookInfo();
+            if (LIBROS_BIBLIA.length > 0) {
+                libroCombo.value = LIBROS_BIBLIA[0]; // Seleccionar el primer libro por defecto
+                updateCapitulosInfo();
+                displayBookInfo();
+            }
+        } else {
+            console.error("Elemento 'libro-combo' no encontrado en el DOM.");
         }
+        
         setStatus('Datos de la Biblia cargados exitosamente. Seleccione un pasaje y presione Buscar.');
+
+        // Llamar a displayVerseOfTheDay después de cargar los datos
+        displayVerseOfTheDay();
 
     } catch (error) {
         displayResult(`<span class="error-text">Error de Carga: ${error.message}</span>`, false);
@@ -528,7 +756,7 @@ function deleteNote() {
     }
     saveAllVerseData(allData);
     closeNoteModal();
-    buscarVersiculo();
+    buscarVersiculo(); // Actualizar la visualización del pasaje actual
     setStatus('Nota eliminada.');
 }
 
@@ -554,9 +782,13 @@ function toggleHighlight(book, chapter, verse) {
 
 // Añadir Event Listeners a los botones de acción (Nota/Resaltar) dinámicamente
 function addActionButtonListeners() {
-    document.querySelectorAll('.action-button').forEach(button => {
-        button.onclick = null; // Eliminar listeners previos para evitar duplicados
-        button.onclick = (event) => {
+    // Es importante remover los listeners antes de añadir nuevos para evitar duplicados
+    // y problemas de memoria, especialmente si el HTML se regenera.
+    document.querySelectorAll('.action-button[data-action="note"], .action-button[data-action="highlight"]').forEach(button => {
+        // Clonar y reemplazar el elemento es una forma efectiva de remover todos los listeners existentes.
+        const newButton = button.cloneNode(true);
+        button.parentNode.replaceChild(newButton, button);
+        newButton.addEventListener('click', (event) => {
             const action = event.target.dataset.action;
             const book = event.target.dataset.book;
             const chapter = event.target.dataset.chapter;
@@ -567,121 +799,139 @@ function addActionButtonListeners() {
             } else if (action === 'highlight') {
                 toggleHighlight(book, chapter, verse);
             }
-        };
+        });
     });
 }
 
 // Añadir Event Listeners a los botones de eliminar nota dinámicamente
 function addDeleteNoteButtonListeners() {
     document.querySelectorAll('.note-delete-button').forEach(button => {
-        button.onclick = null; // Eliminar listeners previos
-        button.onclick = (event) => {
-            currentVerseForNote = event.target.dataset.verseId; // Establecer el versículo actual para la eliminación
-            deleteNote();
-        };
+        const newButton = button.cloneNode(true);
+        button.parentNode.replaceChild(newButton, button);
+        newButton.addEventListener('click', (event) => {
+            const verseId = event.target.dataset.verseId;
+            // Necesitamos parsear el verseId para obtener book, chapter, verse
+            // Formato: "Libro_Capitulo_Versiculo"
+            const parts = verseId.split('_');
+            if (parts.length === 3) {
+                const [book, chapter, verse] = parts;
+                // Si el modal está abierto para este versículo, lo cerramos y luego eliminamos la nota
+                if (currentVerseForNote === verseId) {
+                    closeNoteModal();
+                }
+                // Llamamos a la función de eliminación de nota genérica, que manejará el estado
+                deleteNoteAndHighlight(verseId); // Usaremos esta función para eliminar
+            } else {
+                console.error("ID de versículo inválido para eliminar nota:", verseId);
+            }
+        });
     });
 }
 
-// --- Función para Compartir Pasaje ---
-
-async function sharePassage() {
-    const currentContent = resultadoArea.innerText.trim();
-
-    if (!currentContent || currentContent === 'Cargando datos...') {
-        setStatus('No hay contenido para compartir. Realice una búsqueda primero.');
-        return;
-    }
-
-    let textToShare = currentContent;
-    textToShare = textToShare.replace(/Referencia: /g, '');
-    textToShare = textToShare.replace(/Total de capítulos: \d+/g, '');
-    textToShare = textToShare.replace(/Total de versículos en el capítulo \d+: \d+/g, '');
-    textToShare = textToShare.replace(/Error: .*?\./g, '').trim();
-    textToShare = textToShare.replace(/No se encontraron coincidencias para su búsqueda./g, '').trim();
-    
-    // Quitar los textos de los botones de acción y sus emojis si se incluyeron accidentalmente en innerText
-    textToShare = textToShare.replace(/✏️ Nota/g, '').replace(/✨ Resaltar/g, '');
-    textToShare = textToShare.replace(/×/g, ''); // Eliminar el botón de eliminar nota
-
-    const formattedText = `
-✨📖 ${textToShare.trim()} 📖✨
-
----
-Buscado con el Buscador Bíblico Neón
-`;
-
-    try {
-        await navigator.clipboard.writeText(formattedText);
-        setStatus('Versículo copiado al portapapeles con formato neón (texto plano).');
-    } catch (err) {
-        console.error('Error al copiar al portapapeles:', err);
-        setStatus('Error al copiar el versículo. Por favor, copie manualmente.');
-    }
-}
-
-
-// --- Event Listeners (Activadores de las funciones) ---
-
-buscarBtn.addEventListener('click', buscarVersiculo);
-libroCombo.addEventListener('change', updateCapitulosInfo);
-capituloEntry.addEventListener('input', updateVersiculosInfo);
-
-prevCapituloBtn.addEventListener('click', () => navigateCapitulo(-1));
-nextCapituloBtn.addEventListener('click', () => navigateCapitulo(1));
-
-searchTextBtn.addEventListener('click', buscarTexto);
-searchTextEntry.addEventListener('keypress', (event) => {
-    if (event.key === 'Enter') {
-        buscarTexto();
-    }
-});
-
-shareBtn.addEventListener('click', sharePassage);
-
-// Event Listeners del Modal de Notas
-closeModalBtn.addEventListener('click', closeNoteModal);
-saveNoteBtn.addEventListener('click', saveNote);
-deleteNoteBtn.addEventListener('click', deleteNote);
-// Cerrar modal al hacer clic fuera
-noteModalOverlay.addEventListener('click', (event) => {
-    if (event.target === noteModalOverlay) {
-        closeNoteModal();
-    }
-});
-
-// --- Inicialización ---
-// Cargar datos al iniciar la página
-loadBibleData();
-
-// NUEVO: Manejar parámetros de URL al cargar la página (para redirigir desde notas)
-document.addEventListener('DOMContentLoaded', () => {
-    loadBibleData().then(() => { // Asegurarse de que los datos estén cargados primero
-        const urlParams = new URLSearchParams(window.location.search);
-        const book = urlParams.get('book');
-        const chapter = urlParams.get('chapter');
-        const verse = urlParams.get('verse');
-
-        if (book && chapter && verse) {
-            // Establecer los valores en los campos de entrada
-            libroCombo.value = decodeURIComponent(book);
-            capituloEntry.value = chapter;
-            versiculoEntry.value = verse;
-            
-            // Asegurarse de que el combo de libros esté actualizado y luego buscar
-            if (LIBROS_BIBLIA.includes(libroCombo.value)) {
-                updateCapitulosInfo(); // Esto actualizará info y displayBookInfo
-                buscarVersiculo();
-            } else {
-                setStatus('El libro especificado en la URL no fue encontrado.');
+// Función para eliminar nota y resaltado por ID de versículo
+function deleteNoteAndHighlight(verseId) {
+    if (confirm('¿Estás seguro de que quieres eliminar la nota y/o el resaltado de este versículo?')) {
+        const allData = getAllVerseData();
+        if (allData[verseId]) {
+            delete allData[verseId];
+            saveAllVerseData(allData);
+            setStatus('Nota y resaltado eliminados.');
+            // Re-renderizar la sección actual si aplica
+            const currentBook = libroCombo.value;
+            const currentChapter = capituloEntry.value;
+            if (currentBook && currentChapter) {
+                buscarVersiculo(); // Si estamos viendo un pasaje específico
+            } else if (searchTextEntry.value.trim() !== '') {
+                buscarTexto(); // Si estamos viendo resultados de búsqueda de texto
             }
         }
-    });
-});
-
-// NUEVO: Event listener para el botón "Mis Notas y Resaltados"
-const myNotesBtn = document.getElementById('my-notes-btn');
-if (myNotesBtn) { // Asegurarse de que el botón exista antes de añadir el listener
-    myNotesBtn.addEventListener('click', () => {
-        window.location.href = 'biblioteca_notas.html'; // Redirige a la nueva página
-    });
+    }
 }
+
+
+// --- Event Listeners principales (DOMContentLoaded) ---
+document.addEventListener('DOMContentLoaded', () => {
+    // Carga los datos de la Biblia y resúmenes, y luego el versículo del día.
+    loadBibleData();
+
+    // Event Listeners existentes
+    if (libroCombo) libroCombo.addEventListener('change', updateCapitulosInfo);
+    if (capituloEntry) capituloEntry.addEventListener('input', updateVersiculosInfo);
+    if (buscarBtn) buscarBtn.addEventListener('click', buscarVersiculo);
+    if (prevCapituloBtn) prevCapituloBtn.addEventListener('click', () => navigateCapitulo(-1));
+    if (nextCapituloBtn) nextCapituloBtn.addEventListener('click', () => navigateCapitulo(1));
+    if (searchTextBtn) searchTextBtn.addEventListener('click', buscarTexto);
+    if (shareBtn) {
+        shareBtn.addEventListener('click', () => {
+            const selection = window.getSelection().toString().trim();
+            if (selection) {
+                // Utiliza la API Web Share si está disponible
+                if (navigator.share) {
+                    navigator.share({
+                        title: 'Versículo Bíblico',
+                        text: selection,
+                        url: window.location.href // O una URL más específica si la implementas
+                    }).then(() => {
+                        setStatus('Contenido compartido con éxito.');
+                    }).catch(error => {
+                        console.error('Error al compartir:', error);
+                        setStatus('Error al compartir.');
+                    });
+                } else {
+                    // Fallback para navegadores que no soportan Web Share
+                    navigator.clipboard.writeText(selection)
+                        .then(() => {
+                            setStatus('Versículo copiado al portapapeles.');
+                            alert('Versículo copiado al portapapeles:\n\n' + selection);
+                        })
+                        .catch(err => {
+                            console.error('Error al copiar:', err);
+                            setStatus('No se pudo copiar el versículo.');
+                            alert('Por favor, selecciona el texto y usa Ctrl+C (o Cmd+C) para copiar.');
+                        });
+                }
+            } else {
+                setStatus('Selecciona un texto para compartir.');
+                alert('Por favor, selecciona el texto de un versículo para compartir.');
+            }
+        });
+    }
+
+    // Event Listeners para el modal de notas
+    if (closeModalBtn) closeModalBtn.addEventListener('click', closeNoteModal);
+    if (noteModalOverlay) noteModalOverlay.addEventListener('click', (e) => {
+        if (e.target === noteModalOverlay) {
+            closeNoteModal();
+        }
+    });
+    if (saveNoteBtn) saveNoteBtn.addEventListener('click', saveNote);
+    if (deleteNoteBtn) deleteNoteBtn.addEventListener('click', deleteNote);
+
+    // NUEVO Event Listener para el botón de Versículo Aleatorio
+    if (randomVerseBtn) randomVerseBtn.addEventListener('click', displayRandomVerse);
+
+    // Lógica para procesar parámetros de la URL al cargar la página
+    const urlParams = new URLSearchParams(window.location.search);
+    const bookFromUrl = urlParams.get('book');
+    const chapterFromUrl = urlParams.get('chapter');
+    const verseFromUrl = urlParams.get('verse');
+
+    if (bookFromUrl && chapterFromUrl) {
+        // Establecer valores y disparar búsqueda después de que los datos estén cargados
+        // Se hará en loadBibleData() una vez que los datos estén listos.
+        // Opcional: Podríamos tener una función separada que espere a que BIBLIA_DATA esté lleno
+        // o usar una promesa si la carga inicial es asíncrona y no hay un evento simple.
+        // Por ahora, asumimos que populateBookCombo ya está cargando los primeros valores.
+        // Si ves que esto no funciona al cargar por URL, podríamos necesitar una lógica de "espera".
+        if (libroCombo.value !== bookFromUrl) {
+             libroCombo.value = bookFromUrl;
+             updateCapitulosInfo(); // Asegura que se cargue la info del libro si cambió
+        }
+        capituloEntry.value = chapterFromUrl;
+        updateVersiculosInfo();
+        if (verseFromUrl) {
+            versiculoEntry.value = verseFromUrl;
+        }
+        buscarVersiculo();
+    }
+});
